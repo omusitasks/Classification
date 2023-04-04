@@ -1,0 +1,223 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# Load tidyverse package, which contains a variety of useful functions
+library(tidyverse)
+
+# Load readxl package, which contains functions to read Excel files
+library(readxl)
+
+# Load knitr package, which contains functions to generate reports
+library(knitr)
+
+# Load ggplot2 package, which contains functions for data visualization
+library(ggplot2)
+
+# Load lubridate package, which contains functions for manipulating dates and times
+library(lubridate)
+
+# Load arules package, which contains functions for mining association rules
+library(arules)
+
+# Load arulesViz package, which contains functions for visualizing association rules
+library(arulesViz)
+
+# Load plyr package, which contains functions for data manipulation
+library(plyr)
+
+```
+
+
+```{r}
+# Read in the Excel file "Online_retail.xlsx" and store it in an object called "retail"
+retail <- read_excel('Online_retail.xlsx')
+```
+
+
+```{r}
+
+# Remove any rows with missing values
+retail <- retail[complete.cases(retail), ]
+
+# Convert Description and Country columns to factors
+retail <- retail %>% mutate(Description = as.factor(Description))
+retail <- retail %>% mutate(Country = as.factor(Country))
+
+# Convert Invoice Date column to Date type
+retail$Date <- as.Date(retail$InvoiceDate)
+
+# Create a new Time column from Invoice Date
+retail$Time <- format(retail$InvoiceDate,"%H:%M:%S")
+
+# Convert InvoiceNo column to numeric 
+retail$InvoiceNo <- as.numeric(as.character(retail$InvoiceNo))
+
+# View the structure of the data
+glimpse(retail)
+```
+
+
+```{r}
+
+#Convert the Time column in the retail dataframe to a factor
+retail$Time <- as.factor(retail$Time)
+
+#Convert the Time column in the retail dataframe into a format that can be used for plotting
+a <- hms(as.character(retail$Time))
+
+#Convert the Time column in the retail dataframe to only the hour component
+retail$Time = hour(a)
+
+#Create a histogram to show the distribution of shopping times
+retail %>% 
+  ggplot(aes(x=Time)) + 
+  geom_histogram(stat="count",fill="indianred")
+```
+
+
+
+```{r}
+
+#How many items each customer buy?
+
+# Group the dataset by each InvoiceNo
+retail %>% 
+group_by(InvoiceNo) %>%
+
+# Calculate the mean of the Quantity for each group
+summarize(n_items = mean(Quantity)) %>%
+
+# Create a histogram to visualize the distribution of number of items per invoice
+ggplot(aes(x=n_items))+
+geom_histogram(fill="indianred", bins = 100000) + 
+
+# Add a rug plot to the histogram to show the individual values
+geom_rug()+
+
+# Set the x-axis limits to 0-80
+coord_cartesian(xlim=c(0,80))
+
+#People mostly purchased less than 10 items (less than 10 items in each invoice).
+
+```
+
+
+```{r}
+#Top 10 best sellers
+
+
+# group the retail data by StockCode and Description
+tmp <- retail %>% 
+  group_by(StockCode, Description) %>% 
+
+# summarize the count of each Description & StockCode
+  summarize(count = n()) %>% 
+
+# arrange the data in descending order of count
+  arrange(desc(count))
+
+# store the top 10 of the arranged data
+tmp <- head(tmp, n=10)
+
+# use ggplot to create a bar chart of the top 10 Descriptions & StockCodes, ordered by count
+tmp %>% 
+  ggplot(aes(x=reorder(Description,count), y=count))+
+  geom_bar(stat="identity",fill="indian red")+
+  coord_flip()
+```
+
+
+```{r}
+#Association rules for online retailer
+
+# Sort the retail dataset by CustomerID
+retail_sorted <- retail[order(retail$CustomerID),] 
+
+# Load the plyr package
+library(plyr)
+
+# Use the ddply function from the plyr package to group the data by CustomerID and Date. Then paste the Description for each group into a single string, separated by commas
+itemList <- ddply(retail,c("CustomerID","Date"), function(df1)paste(df1$Description, collapse = ","))
+
+# Remove the CustomerID and Date columns from the dataset
+itemList$CustomerID <- NULL
+itemList$Date <- NULL
+
+# Rename the column containing the items to "items"
+colnames(itemList) <- c("items")
+```
+
+
+```{r}
+#Now, read them back in.
+# Read the csv file 
+itemList <- read.csv("market_basket.csv")
+
+# Write the csv file 
+write.csv(itemList,"market_basket.csv", quote = FALSE, row.names = TRUE)
+
+# Read the transactions from the csv file 
+tr <- read.transactions('market_basket.csv', format = 'basket', sep=',')
+
+# Display the transactions 
+tr
+
+# Summarize the transactions 
+summary(tr)
+```
+
+
+```{r}
+
+# Create a transaction object from the mydata data frame
+tr <- as(mydata, "transactions")
+
+# Plot transaction data showing the top 20 items in terms of absolute frequency
+itemFrequencyPlot(tr, topN=20, type='absolute')
+
+# Create rules from the transactions object using the specified support and confidence values
+rules <- apriori(tr, parameter = list(supp=0.001, conf=0.8))
+
+# Sort rules by confidence, in descending order
+rules <- sort(rules, by='confidence', decreasing = TRUE)
+
+# Generate a summary of the rules
+summary(rules)
+
+# Inspect the top 10 rules
+inspect(rules[1:10])
+
+# Create a variable to hold the top 10 rules
+topRules <- rules[1:10]
+
+# Plot top rules using a default method
+plot(topRules)
+
+# Plot top rules using the "graph" method
+plot(topRules, method="graph")
+
+# Plot top rules using the "grouped" method
+plot(topRules, method = "grouped")
+```
+
+
+```{r}
+
+# This line imports the Iris data from the mlbench package
+data("iris", package="mlbench")
+# This line displays the first 6 rows of the Iris data
+head(iris)
+```
+
+
+
+
+
+
+
+
+
